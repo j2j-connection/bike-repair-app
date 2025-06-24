@@ -27,6 +27,7 @@
             text-align: center;
             color: white;
             margin-bottom: 30px;
+            position: relative;
         }
         
         .header h1 {
@@ -37,6 +38,104 @@
         .header p {
             font-size: 1.1rem;
             opacity: 0.9;
+        }
+        
+        .auth-section {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 25px;
+            color: white;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .auth-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .auth-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        
+        .flash-message {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        
+        .flash-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .flash-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .login-prompt {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .login-prompt h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+        
+        .login-prompt p {
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 1.1rem;
+        }
+        
+        .login-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        
+        .login-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
         
         .stats-grid {
@@ -259,6 +358,12 @@
                 font-size: 2rem;
             }
             
+            .auth-section {
+                position: static;
+                justify-content: center;
+                margin-top: 20px;
+            }
+            
             .stats-grid {
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             }
@@ -274,23 +379,42 @@
         <div class="header">
             <h1>🚴‍♂️ Strava Traffic Monitor</h1>
             <p>Real-time traffic comparison data from your rides</p>
-        </div>
-        
-        <div class="stats-grid" id="statsGrid">
-            <div class="loading">Loading statistics...</div>
-        </div>
-        
-        <div class="status-bar" id="statusBar">
-            <div class="loading">Loading status...</div>
-        </div>
-        
-        <div class="rides-section">
-            <div class="section-header">
-                <h2 class="section-title">Recent Rides</h2>
-                <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+            <div class="auth-section" id="authSection">
+                <div class="loading">Loading...</div>
             </div>
-            <div id="ridesList">
-                <div class="loading">Loading rides...</div>
+        </div>
+        
+        <div class="flash-messages" id="flashMessages">
+            {% for category, message in flash_messages %}
+                <div class="flash-message flash-{{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+        
+        <div class="login-prompt" id="loginPrompt" style="display: none;">
+            <h2>Welcome to Strava Traffic Monitor</h2>
+            <p>Connect your Strava account to view your commute comparisons and see how much time you're saving by cycling!</p>
+            <a href="/login" class="login-btn">🚴‍♂️ Connect with Strava</a>
+        </div>
+        
+        <div id="dashboardContent" style="display: none;">
+            <div class="stats-grid" id="statsGrid">
+                <div class="loading">Loading statistics...</div>
+            </div>
+            
+            <div class="status-bar" id="statusBar">
+                <div class="loading">Loading status...</div>
+            </div>
+            
+            <div class="rides-section">
+                <div class="section-header">
+                    <h2 class="section-title">Recent Rides</h2>
+                    <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+                </div>
+                <div id="ridesList">
+                    <div class="loading">Loading rides...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -300,13 +424,52 @@
         let comparisonsData = [];
         let statsData = {};
         let statusData = {};
+        let userData = {};
         
         // Load data on page load
         document.addEventListener('DOMContentLoaded', function() {
-            loadAllData();
+            loadUserInfo();
             // Auto-refresh every 30 seconds
-            setInterval(loadAllData, 30000);
+            setInterval(loadUserInfo, 30000);
         });
+        
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user_info');
+                userData = await response.json();
+                updateAuthDisplay();
+                
+                if (userData.authenticated) {
+                    loadAllData();
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+            }
+        }
+        
+        function updateAuthDisplay() {
+            const authSection = document.getElementById('authSection');
+            const loginPrompt = document.getElementById('loginPrompt');
+            const dashboardContent = document.getElementById('dashboardContent');
+            
+            if (userData.authenticated) {
+                const userInfo = userData.user_info;
+                authSection.innerHTML = `
+                    <div class="user-info">
+                        👤 ${userInfo.firstname || 'Athlete'}
+                    </div>
+                    <a href="/logout" class="auth-btn">Logout</a>
+                `;
+                loginPrompt.style.display = 'none';
+                dashboardContent.style.display = 'block';
+            } else {
+                authSection.innerHTML = `
+                    <a href="/login" class="auth-btn">Login with Strava</a>
+                `;
+                loginPrompt.style.display = 'block';
+                dashboardContent.style.display = 'none';
+            }
+        }
         
         async function loadAllData() {
             await Promise.all([

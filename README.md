@@ -10,6 +10,7 @@ A comprehensive Python application that monitors Strava activities and compares 
 - **Offline resilience** - Stores activities when offline, processes when connection returns
 - **Web dashboard** - Beautiful interface accessible from any device
 - **Mobile app experience** - Add to home screen for native app feel
+- **OAuth authentication** - Multi-user support with secure Strava login
 
 ### Brake Pad Wear Analysis
 - **Standalone version** - Manual input for wear estimation
@@ -85,6 +86,40 @@ python3 test_traffic_comparison.py
 # Start the full service
 python3 start_mac_mini_service.py
 ```
+
+## 🔐 OAuth Authentication Setup
+
+For multi-user support with OAuth authentication:
+
+### 1. Set Up OAuth (Recommended)
+```bash
+# Run the OAuth setup script
+python3 setup_strava_app.py
+
+# This will guide you through creating a Strava app and configuring OAuth
+```
+
+### 2. Manual OAuth Setup
+1. Create a Strava app at https://www.strava.com/settings/api
+2. Set Authorization Callback Domain to `localhost`
+3. Create a `.env` file with your credentials:
+   ```
+   STRAVA_CLIENT_ID=your_client_id
+   STRAVA_CLIENT_SECRET=your_client_secret
+   GOOGLE_MAPS_API_KEY=your_google_maps_key
+   SECRET_KEY=your_secret_key
+   ```
+
+### 3. Run with OAuth
+```bash
+# Start the web dashboard
+python3 web_dashboard.py
+
+# Visit http://localhost:5000
+# Click "Login with Strava" to authenticate
+```
+
+For detailed OAuth setup instructions, see [README_OAUTH.md](README_OAUTH.md).
 
 ## 🔧 Configuration
 
