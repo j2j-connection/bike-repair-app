@@ -330,6 +330,28 @@ def trigger_check():
     except Exception as e:
         return jsonify({"error": str(e)})
 
+@app.route('/api/fetch_historical')
+def fetch_historical():
+    """Fetch and process historical activities."""
+    user_id = session.get('current_user_id')
+    monitor = get_monitor_for_user(user_id)
+    
+    if not monitor:
+        return jsonify({"error": "Monitor not available. Please log in to Strava."})
+    
+    try:
+        # Get days_back from query parameter or use default
+        days_back = request.args.get('days', type=int, default=30)
+        new_comparisons = monitor.fetch_historical_activities(days_back)
+        return jsonify({
+            "success": True,
+            "new_comparisons": len(new_comparisons),
+            "activities": [comp.activity_name for comp in new_comparisons],
+            "days_back": days_back
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
 @app.route('/api/user_info')
 def get_user_info():
     """Get current user information."""

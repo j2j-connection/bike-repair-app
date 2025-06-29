@@ -446,9 +446,17 @@ class StravaMonitor:
             if processed_pending > 0:
                 print(f"   ✅ Processed {processed_pending} pending captures")
             
-            # Get recent activities (last 24 hours)
-            after_date = datetime.now() - timedelta(hours=24)
-            activities = self.strava_api.get_activities(after=after_date, activity_type="Ride")
+            # Get recent activities (use DAYS_BACK from config, default to 30 days)
+            try:
+                from config import DAYS_BACK
+                days_back = DAYS_BACK
+            except ImportError:
+                days_back = 30  # Default to 30 days if config not available
+            
+            after_date = datetime.now() - timedelta(days=days_back)
+            activities = self.strava_api.get_activities(after=after_date)
+            # Filter for both regular and e-bike rides
+            activities = [a for a in activities if a.get("type") in ("Ride", "EBikeRide")]
             
             if not activities:
                 return []
@@ -486,6 +494,78 @@ class StravaMonitor:
             
         except Exception as e:
             print(f"❌ Error checking for new activities: {e}")
+            return []
+    
+    def fetch_historical_activities(self, days_back: int = 30) -> List[StoredTrafficComparison]:
+        """
+        Fetch and process historical activities.
+        
+        Args:
+            days_back: Number of days to look back (uses config if None)
+            
+        Returns:
+            List of newly captured traffic comparisons
+        """
+        try:
+            # Check internet connection first
+            if not self.check_internet_connection():
+                print(f"   📱 No internet connection")
+                return []
+            
+            # Use provided days_back or get from config
+            if days_back == 30:  # Default value, try to get from config
+                try:
+                    from config import DAYS_BACK
+                    days_back = DAYS_BACK
+                except ImportError:
+                    days_back = 30  # Default to 30 days
+            
+            after_date = datetime.now() - timedelta(days=days_back)
+            activities = self.strava_api.get_activities(after=after_date)
+            # Filter for both regular and e-bike rides
+            activities = [a for a in activities if a.get("type") in ("Ride", "EBikeRide")]
+            
+            if not activities:
+                print(f"   No activities found in the last {days_back} days")
+                return []
+            
+            print(f"   Found {len(activities)} activities in the last {days_back} days")
+            
+            # Get last processed activity ID
+            last_processed = self.get_last_processed_activity()
+            
+            new_comparisons = []
+            processed_count = 0
+            
+            for activity in activities:
+                activity_id = activity["id"]
+                
+                # Skip if already processed
+                if last_processed and activity_id <= last_processed:
+                    continue
+                
+                processed_count += 1
+                print(f"🚴‍♂️ Processing activity {processed_count}/{len(activities)}: {activity.get('name', 'Unknown')}")
+                
+                # Try to capture traffic data
+                comparison = self.capture_traffic_for_activity(activity_id)
+                
+                if comparison:
+                    new_comparisons.append(comparison)
+                    print(f"   ✅ Traffic captured: {comparison.time_saved_minutes:.1f} minutes saved")
+                else:
+                    # Store for later capture if we're having connection issues
+                    print(f"   📱 Storing for later capture...")
+                    self.store_pending_activity(activity)
+                
+                # Rate limiting
+                time.sleep(2)
+            
+            print(f"   Processed {processed_count} new activities")
+            return new_comparisons
+            
+        except Exception as e:
+            print(f"❌ Error fetching historical activities: {e}")
             return []
     
     def monitor_continuously(self, check_interval: int = 300):
